@@ -6,8 +6,7 @@ sourceDirectory = ...
     './ExtractedStacks_Titration/**/';
 
 % Channels for segmentation
-%NucSegChannel = 1; % Channel used to detect nuclei
-Droplet_SegChannel = 2; % Channel used to detect droplets
+Condensate_SegChannel = 2; % Channel used to detect droplets
 Surface_SegChannel = 1; % Channel used to detect surface structures
 
 % Save images of the clusters
@@ -21,18 +20,18 @@ quantChannels = [1,2];
 quantBlurSigma = [0,0];
 
 % Parameters for the blurring during image preprocessing
-Droplet_segBlurSigma_object = 0.5; % in microns
-Droplet_segBlurSigma_BG_removal = 1.5; % in microns
+Condensate_segBlurSigma_object = 0.5; % in microns
+Condensate_segBlurSigma_BG_removal = 1.5; % in microns
 % Number of standard deviations above background for the robust threshold
-Droplet_seg_numStdDev = 12.0;
+Condensate_seg_numStdDev = 12.0;
 
 % Blurring and segmentation parameters for the Surface
 Surface_segBlurSigma_object = 0.5; % in microns
 Surface_segBlurSigma_BG_removal = 1.5; % in microns
 Surface_seg_numStdDev = 12.0; % number of standard deviations in robust threshold
 
-% Minimum volumes for objects inside the nuclei
-Droplet_minVol = 0.02; % cubic microns
+% Minimum volumes for condensate and surface objects
+Condensate_minVol = 0.02; % cubic microns
 Surface_minVol = 0.02; % cubic microns
 
 % end of analysis parameter section, do not change anything else in
@@ -62,31 +61,31 @@ end
 
 %% --- analyze image stacks one by one
 
-% Flag to log files that were successfully analyzed and contained nuclei
+% Flag to log files that were successfully analyzed
 validFileFlag = false(1,numFiles);
 
-% Variables to store properties of nuclei
+% Variables to store properties
 numSurf_vec = zeros(1,numFiles);
-numDrop_vec = zeros(1,numFiles);
-surf_intCell = cell(1,numFiles);
+numCond_vec = zeros(1,numFiles);
+cond_intCell = cell(1,numFiles);
 drop_intCell = cell(1,numFiles);
 pixelSize_vec = zeros(1,numFiles);
 zStepSize_vec = zeros(1,numFiles);
 
 % Variable to store the pixel sizes
-Droplet_xyVoxelSizeCell = cell(1,numFiles);
-Droplet_zVoxelSizeCell = cell(1,numFiles);
+Condensate_xyVoxelSizeCell = cell(1,numFiles);
+Condensate_zVoxelSizeCell = cell(1,numFiles);
 Surface_xyVoxelSizeCell = cell(1,numFiles);
 Surface_zVoxelSizeCell = cell(1,numFiles);
 
 % Variables to store properties of objects inside nuclei
-Droplet_volCell = cell(1,numFiles);
-Droplet_solCell = cell(1,numFiles);
-Droplet_eloCell = cell(1,numFiles);
-Droplet_intCell = cell(1,numFiles);
-Droplet_centCell = cell(1,numFiles);
-Droplet_imgCell = cell(1,numFiles);
-Droplet_Surface_distCell = cell(1,numFiles);
+Condensate_volCell = cell(1,numFiles);
+Condensate_solCell = cell(1,numFiles);
+Condensate_eloCell = cell(1,numFiles);
+Condensate_intCell = cell(1,numFiles);
+Condensate_centCell = cell(1,numFiles);
+Condensate_imgCell = cell(1,numFiles);
+Condensate_Surface_distCell = cell(1,numFiles);
 
 Surface_volCell = cell(1,numFiles);
 Surface_solCell = cell(1,numFiles);
@@ -94,7 +93,7 @@ Surface_eloCell = cell(1,numFiles);
 Surface_intCell = cell(1,numFiles);
 Surface_centCell = cell(1,numFiles);
 Surface_imgCell = cell(1,numFiles);
-Surface_Droplet_distCell = cell(1,numFiles);
+Surface_Condensate_distCell = cell(1,numFiles);
 
 numQuantChannels = numel(quantChannels);
 
@@ -127,16 +126,16 @@ for ff = 1:numFiles
             - imgaussfilt(segImg_surf,Surface_segBlurSigma_BG_removal./pixelSize);
     end
 
-    % Droplet segmentation
-    segImg_drop = imgStack{Droplet_SegChannel};
-    if Droplet_segBlurSigma_object>0
-        segImg_drop = ...
-            + imgaussfilt(segImg_drop,Surface_segBlurSigma_object./pixelSize) ...
-            - imgaussfilt(segImg_drop,Surface_segBlurSigma_BG_removal./pixelSize);
+    % Condensate segmentation
+    segImg_cond = imgStack{Condensate_SegChannel};
+    if Condensate_segBlurSigma_object>0
+        segImg_cond = ...
+            + imgaussfilt(segImg_cond,Surface_segBlurSigma_object./pixelSize) ...
+            - imgaussfilt(segImg_cond,Surface_segBlurSigma_BG_removal./pixelSize);
     else
-        segImg_drop = ...
-            + segImg_drop ...
-            - imgaussfilt(segImg_drop,Droplet_segBlurSigma_BG_removal./pixelSize);
+        segImg_cond = ...
+            + segImg_cond ...
+            - imgaussfilt(segImg_cond,Condensate_segBlurSigma_BG_removal./pixelSize);
     end
 
     seg_intensities_surf = segImg_surf(:);
@@ -144,67 +143,73 @@ for ff = 1:numFiles
     seg_std_surf = std(seg_intensities_surf);
     SurfaceSegMask = segImg_surf>(seg_mean_surf+Surface_seg_numStdDev.*seg_std_surf);
 
-    seg_intensities_drop = segImg_drop(:);
-    seg_mean_drop = mean(seg_intensities_drop);
-    seg_std_drop = std(seg_intensities_drop);
-    DropletSegMask = segImg_drop>(seg_mean_drop+Droplet_seg_numStdDev.*seg_std_drop);    
+    seg_intensities_cond = segImg_cond(:);
+    seg_mean_cond = mean(seg_intensities_cond);
+    seg_std_cond = std(seg_intensities_cond);
+    CondensateSegMask = segImg_cond>(seg_mean_cond+Condensate_seg_numStdDev.*seg_std_cond);    
     
-    % display raw iage, preprocessed image, and segmented image for both
+    % display raw image, preprocessed image, and segmented image for both
     % channels
 
 	subplot(4,3,1)
 	imagesc(squeeze(imgStack{Surface_SegChannel}(:,:,ceil(imgSize(3)./2))))
 	axis tight equal
-    title('Surface Section')
+    title('Raw image')
+    xlabel('Surface, central section')
 	
 	subplot(4,3,2)
 	imagesc(squeeze(segImg_surf(:,:,ceil(imgSize(3)./2))))
 	axis tight equal
+    title('Processed image')
 
 	subplot(4,3,3)
 	imagesc(squeeze(SurfaceSegMask(:,:,ceil(imgSize(3)./2))))
 	axis tight equal
+    title('Segmentation mask')
 
     subplot(4,3,4)
 	imagesc(max(imgStack{Surface_SegChannel},[],3))
 	axis tight equal
-    title('Surface Max Intensity')
+    xlabel('Surface Max Intensity')
 
 	
 	subplot(4,3,5)
 	imagesc(max(segImg_surf,[],3))
 	axis tight equal
+    xlabel('Surface, max. projection')
+
 
     subplot(4,3,6)
     imagesc(max(SurfaceSegMask,[],3))
 	axis tight equal
     
     subplot(4,3,7)
-	imagesc(squeeze(imgStack{Droplet_SegChannel}(:,:,ceil(imgSize(3)./2))))
+	imagesc(squeeze(imgStack{Condensate_SegChannel}(:,:,ceil(imgSize(3)./2))))
 	axis tight equal
-    title('Droplet Section')
+    xlabel('Condensate, xy-section')
+
 
 	
 	subplot(4,3,8)
-	imagesc(squeeze(segImg_drop(:,:,ceil(imgSize(3)./2))))
+	imagesc(squeeze(segImg_cond(:,:,ceil(imgSize(3)./2))))
 	axis tight equal
 
 	subplot(4,3,9)
-	imagesc(squeeze(DropletSegMask(:,:,ceil(imgSize(3)./2))))
+	imagesc(squeeze(CondensateSegMask(:,:,ceil(imgSize(3)./2))))
 	axis tight equal
+    xlabel('Condensate, xy-section')
 
     subplot(4,3,10)
-	imagesc(max(imgStack{Droplet_SegChannel},[],3))
+	imagesc(max(imgStack{Condensate_SegChannel},[],3))
 	axis tight equal
-    title('Droplet Max Intensity')
-
+    xlabel('Condensate, max. projection')
 	
 	subplot(4,3,11)
-	imagesc(max(segImg_drop,[],3))
+	imagesc(max(segImg_cond,[],3))
 	axis tight equal
 
     subplot (4,3,12)
-    imagesc(max(DropletSegMask,[],3))
+    imagesc(max(CondensateSegMask,[],3))
 	axis tight equal
     
 
@@ -228,15 +233,15 @@ for ff = 1:numFiles
 	numSurf_vec(ff) = numSurf;
 
 	% --- Connected component segmentation of droplets
-	comps_drop = bwconncomp(DropletSegMask,18);
+	comps_drop = bwconncomp(CondensateSegMask,18);
 	numPxls = cellfun(@(elmt)numel(elmt),comps_drop.PixelIdxList);
-	minPixels = Droplet_minVol./(pixelSize.^2)./zStepSize;
+	minPixels = Condensate_minVol./(pixelSize.^2)./zStepSize;
 	comps_drop.NumObjects = sum(numPxls>=minPixels);
 	comps_drop.PixelIdxList = comps_drop.PixelIdxList(numPxls>=minPixels);
 	numPxls = cellfun(@(elmt)numel(elmt),comps_drop.PixelIdxList);
 		
 	numDrop = comps_drop.NumObjects;
-    numDrop_vec(ff) = numDrop;
+    numCond_vec(ff) = numDrop;
 
     props_surf = regionprops3(comps_surf,imgStack{Surface_SegChannel},...
         'Volume','VoxelValues','Solidity','VoxelIdxList',...
@@ -254,7 +259,7 @@ for ff = 1:numFiles
     Surf_Solidity_array = [props_surf.Solidity];
    
 
-    props_drop = regionprops3(comps_drop,imgStack{Droplet_SegChannel},...
+    props_drop = regionprops3(comps_drop,imgStack{Condensate_SegChannel},...
         'Volume','VoxelValues','Solidity','VoxelIdxList',...
         'BoundingBox','Centroid');
 
@@ -270,7 +275,7 @@ for ff = 1:numFiles
     Drop_Solidity_array = [props_drop.Solidity];
    
 
-    surf_intCell{ff} = cell(1,numQuantChannels);
+    cond_intCell{ff} = cell(1,numQuantChannels);
     drop_intCell{ff} = cell(1,numQuantChannels);
     for qq = 1:numQuantChannels
         quantImg = imgStack{quantChannels(qq)};
@@ -279,7 +284,7 @@ for ff = 1:numFiles
         Surface_intCell{ff}{qq} = [quantProps.MeanIntensity];
         quantProps = regionprops3(comps_drop,quantImg,...
             'MeanIntensity','VoxelIdxList','VoxelValues');
-        Droplet_intCell{ff}{qq} = [quantProps.MeanIntensity];
+        Condensate_intCell{ff}{qq} = [quantProps.MeanIntensity];
 
     end
 
@@ -288,22 +293,22 @@ for ff = 1:numFiles
     % Beginning nearest-neighbor distance calculation
 
     if numDrop==0
-        Droplet_Surface_distCell{ff} = [];
-        Surface_Droplet_distCell{ff} = NaN(size(Surf_Solidity_array));
+        Condensate_Surface_distCell{ff} = [];
+        Surface_Condensate_distCell{ff} = NaN(size(Surf_Solidity_array));
     elseif numSurf==0
-        Droplet_Surface_distCell{ff} = NaN(size(Drop_Solidity_array));
-        Surface_Droplet_distCell{ff} = [];
+        Condensate_Surface_distCell{ff} = NaN(size(Drop_Solidity_array));
+        Surface_Condensate_distCell{ff} = [];
     else
         pwDistMatrix = pdist2(Drop_Centroid_array,Surf_Centroid_array,'euclidean');
-        Droplet_Surface_distCell{ff} = min(pwDistMatrix,[],2);
-        Surface_Droplet_distCell{ff} = min(pwDistMatrix,[],1)';
+        Condensate_Surface_distCell{ff} = min(pwDistMatrix,[],2);
+        Surface_Condensate_distCell{ff} = min(pwDistMatrix,[],1)';
     end
 
     % End nearest-neighbor distance calculation
     % ---
 
-    Droplet_volCell{ff} = Drop_Volume_array;
-    Droplet_solCell{ff} = Drop_Solidity_array;
+    Condensate_volCell{ff} = Drop_Volume_array;
+    Condensate_solCell{ff} = Drop_Solidity_array;
     % Droplet_eloCell{ff} = vertcat(Droplet_elongation{:});
     % Droplet_imgCell{ff} = vertcat(Droplet_centralSlices_store{:});
     % Droplet_centCell{ff} = vertcat(Droplet_cent_store{:});
@@ -372,9 +377,9 @@ end
 % operator. Each element contains a vector, which then gets concatenated by
 % the vertcat command.
 
-Droplet_Volume = vertcat(Droplet_volCell{:});
-Droplet_Solidity = vertcat(Droplet_solCell{:});
-Droplet_Elongation = vertcat(Droplet_eloCell{:});
+Droplet_Volume = vertcat(Condensate_volCell{:});
+Droplet_Solidity = vertcat(Condensate_solCell{:});
+Droplet_Elongation = vertcat(Condensate_eloCell{:});
 % Distance
 
 Surface_Volume = vertcat(Surface_volCell{:});
@@ -388,13 +393,13 @@ Surface_Elongation = vertcat(Surface_eloCell{:});
 % cellfun operation, as we need to make a two-index call, calling into each
 % element of the top cell array for a specific sub-element.
 
-Droplet_DNA_intensity = cellfun(@(elmt)elmt{1}',Droplet_intCell,...
+Droplet_DNA_intensity = cellfun(@(elmt)elmt{1}',Condensate_intCell,...
     'UniformOutput',false);
 Droplet_DNA_intensity = [Droplet_DNA_intensity{:}];
-Droplet_Droplet_intensity = cellfun(@(elmt)elmt{2}',Droplet_intCell,...
+Droplet_Droplet_intensity = cellfun(@(elmt)elmt{2}',Condensate_intCell,...
     'UniformOutput',false);
 Droplet_Droplet_intensity = [Droplet_Droplet_intensity{:}];
-Droplet_Surface_intensity = cellfun(@(elmt)elmt{3}',Droplet_intCell,...
+Droplet_Surface_intensity = cellfun(@(elmt)elmt{3}',Condensate_intCell,...
     'UniformOutput',false);
 Droplet_Surface_intensity = [Droplet_Surface_intensity{:}];
 
@@ -415,7 +420,7 @@ clf
 
 subplot(1,1,1)
 cla
-Surface_Droplet_distCell_vertical_array = vertcat(Surface_Droplet_distCell{:})
+Surface_Droplet_distCell_vertical_array = vertcat(Surface_Condensate_distCell{:})
 hist(Surface_Droplet_distCell_vertical_array,100);
 
 [binCounts,binCenters] = ...
