@@ -15,6 +15,11 @@ In the variable useChannel_inds, enter which channel contains the nanomotifs, an
 
 ## Running actual image analysis over the extracted data
 
+In the file ObjectAnalysis_Titration.m set the directory to which you extracted the image data.
+Also set the analysis parameters in the top section.
+You can run the script in review and parameter adjustment mode if you comment out the following lines in the first for loop:
+fprintf('File name: %s\n',thisFilePath)
+waitforbuttonpress
 
 
 # Example data
