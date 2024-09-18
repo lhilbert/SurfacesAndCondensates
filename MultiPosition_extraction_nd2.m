@@ -36,31 +36,28 @@ plotFlag = false;
 % choose the directory that contains the raw data after the .. symbol. We
 % use this here, and the best is to simply look at how it is used:
 sourceDirectories = { ...
-	'C:\Users\X\Desktop\UNI\HIWI\Analysis_titration_testdata\Control\0_0\',...	
-    'C:\Users\X\Desktop\UNI\HIWI\Analysis_titration_testdata\Control\1_5\',...	
-    'C:\Users\X\Desktop\UNI\HIWI\Analysis_titration_testdata\Control\5_0\',...
-    'C:\Users\X\Desktop\UNI\HIWI\Analysis_titration_testdata\Surface\0_0\',...
-    'C:\Users\X\Desktop\UNI\HIWI\Analysis_titration_testdata\Surface\1_5\',...
-    'C:\Users\X\Desktop\UNI\HIWI\Analysis_titration_testdata\Surface\5_0\',...
-            };
+	'./ExampleData/Surface_0_0_ul/',...	
+    './ExampleData/Surface_0_75_ul/',...	
+    './ExampleData/Surface_2_5_ul/',...	
+    './ExampleData/NoSurface_2_5_ul/'};
 
 % The extracted files need to be placed on the hard drive, and you have to
 % tell the script exactly where that should be. If you do not change this,
 % a directory called 'ExtractedStacks' will be generated in the folder that
 % contains this analysis script. That is not a bad choice, so unless you
 % have a specific reason, you do not really need to change this directory.
-extractTargetFolder = 'ExtractedStacks_Titration';
+extractTargetFolder = 'ExtractedStacks';
 
 % While a lot is automated in this script, you still need to tell it which
 % directory corresponds to which experimental condition. You can also
 % assign several directories to the same condition, so you can pool data
 % that come from different directories.
-condInds = (1:6)';
+condInds = (1:4)';
 % Each condition needs a name, and you need to enter it in this cell array.
 % You can be very short, it just has to work for you to distinguish the
 % different conditions lateron.
 condLabels = {...
-	'C0_0','C1_5','C5_0','S0_0','S1_5','S5_0'
+	'Surf0_0','Surf0_75','Surf2_5','Ctrl2_5'
 	};
 % This variable is an interesting setting if you want to first test the
 % extraction script quickly. If you enter a number, for example 2, you can
@@ -96,7 +93,7 @@ numChannels = numel(useChannel_inds);
 % colro channels. If you put [-Inf,Inf], this will automatically adjust the
 % color range to the minimum and the maximum values found in a given image.
 % Unless you have a strong reason to change this, just leave it as it is.
-scaleChannels = {[-Inf,Inf],[-Inf,Inf],[-Inf,Inf]};
+scaleChannels = {[-Inf,Inf],[-Inf,Inf]};
 
 % --- From here on, the script does not need to be changed.
 % We will go over a few main points of what is contained in the script.

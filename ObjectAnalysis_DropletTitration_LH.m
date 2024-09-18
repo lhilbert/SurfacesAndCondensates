@@ -155,7 +155,7 @@ for ff = 1:numFiles
 	imagesc(squeeze(imgStack{Surface_SegChannel}(:,:,ceil(imgSize(3)./2))))
 	axis tight equal
     title('Raw image')
-    xlabel('Surface, central section')
+    ylabel('Surface, central section')
 	
 	subplot(4,3,2)
 	imagesc(squeeze(segImg_surf(:,:,ceil(imgSize(3)./2))))
@@ -167,28 +167,27 @@ for ff = 1:numFiles
 	axis tight equal
     title('Segmentation mask')
 
+
+
     subplot(4,3,4)
 	imagesc(max(imgStack{Surface_SegChannel},[],3))
 	axis tight equal
-    xlabel('Surface Max Intensity')
+    ylabel('Surface, max. projection')
 
-	
 	subplot(4,3,5)
 	imagesc(max(segImg_surf,[],3))
 	axis tight equal
-    xlabel('Surface, max. projection')
-
-
+    
     subplot(4,3,6)
     imagesc(max(SurfaceSegMask,[],3))
 	axis tight equal
-    
+
+
+
     subplot(4,3,7)
 	imagesc(squeeze(imgStack{Condensate_SegChannel}(:,:,ceil(imgSize(3)./2))))
 	axis tight equal
-    xlabel('Condensate, xy-section')
-
-
+    ylabel('Condensate, xy-section')
 	
 	subplot(4,3,8)
 	imagesc(squeeze(segImg_cond(:,:,ceil(imgSize(3)./2))))
@@ -197,12 +196,13 @@ for ff = 1:numFiles
 	subplot(4,3,9)
 	imagesc(squeeze(CondensateSegMask(:,:,ceil(imgSize(3)./2))))
 	axis tight equal
-    xlabel('Condensate, xy-section')
+
+
 
     subplot(4,3,10)
 	imagesc(max(imgStack{Condensate_SegChannel},[],3))
 	axis tight equal
-    xlabel('Condensate, max. projection')
+    ylabel('Condensate, max. projection')
 	
 	subplot(4,3,11)
 	imagesc(max(segImg_cond,[],3))
@@ -212,8 +212,7 @@ for ff = 1:numFiles
     imagesc(max(CondensateSegMask,[],3))
 	axis tight equal
     
-
-    colormap(gray)
+    colormap(inferno)
 
 
     % Uncomment the following two lines if you want to check the extracted
@@ -232,16 +231,16 @@ for ff = 1:numFiles
 	numSurf = comps_surf.NumObjects;
 	numSurf_vec(ff) = numSurf;
 
-	% --- Connected component segmentation of droplets
-	comps_drop = bwconncomp(CondensateSegMask,18);
-	numPxls = cellfun(@(elmt)numel(elmt),comps_drop.PixelIdxList);
+	% --- Connected component segmentation of condensates
+	comps_cond = bwconncomp(CondensateSegMask,18);
+	numPxls = cellfun(@(elmt)numel(elmt),comps_cond.PixelIdxList);
 	minPixels = Condensate_minVol./(pixelSize.^2)./zStepSize;
-	comps_drop.NumObjects = sum(numPxls>=minPixels);
-	comps_drop.PixelIdxList = comps_drop.PixelIdxList(numPxls>=minPixels);
-	numPxls = cellfun(@(elmt)numel(elmt),comps_drop.PixelIdxList);
+	comps_cond.NumObjects = sum(numPxls>=minPixels);
+	comps_cond.PixelIdxList = comps_cond.PixelIdxList(numPxls>=minPixels);
+	numPxls = cellfun(@(elmt)numel(elmt),comps_cond.PixelIdxList);
 		
-	numDrop = comps_drop.NumObjects;
-    numCond_vec(ff) = numDrop;
+	numCond = comps_cond.NumObjects;
+    numCond_vec(ff) = numCond;
 
     props_surf = regionprops3(comps_surf,imgStack{Surface_SegChannel},...
         'Volume','VoxelValues','Solidity','VoxelIdxList',...
@@ -259,20 +258,20 @@ for ff = 1:numFiles
     Surf_Solidity_array = [props_surf.Solidity];
    
 
-    props_drop = regionprops3(comps_drop,imgStack{Condensate_SegChannel},...
+    props_drop = regionprops3(comps_cond,imgStack{Condensate_SegChannel},...
         'Volume','VoxelValues','Solidity','VoxelIdxList',...
         'BoundingBox','Centroid');
 
-    Drop_Volume_array = [props_drop.Volume].*pixelSize.^2.*zStepSize;
-    if numDrop>0
-        Drop_Intensity_array = cellfun(@(vals)median(vals),props_drop.VoxelValues);
-        Drop_Centroid_array = props_drop.Centroid...
+    Cond_Volume_array = [props_drop.Volume].*pixelSize.^2.*zStepSize;
+    if numCond>0
+        Cond_Intensity_array = cellfun(@(vals)median(vals),props_drop.VoxelValues);
+        Cond_Centroid_array = props_drop.Centroid...
             .*[pixelSize,pixelSize,zStepSize];
     else
-        Drop_Intensity_array = [];
-        Drop_Centroid_array = [];
+        Cond_Intensity_array = [];
+        Cond_Centroid_array = [];
     end
-    Drop_Solidity_array = [props_drop.Solidity];
+    Cond_Solidity_array = [props_drop.Solidity];
    
 
     cond_intCell{ff} = cell(1,numQuantChannels);
@@ -282,47 +281,43 @@ for ff = 1:numFiles
         quantProps = regionprops3(comps_surf,quantImg,...
             'MeanIntensity','VoxelIdxList','VoxelValues');
         Surface_intCell{ff}{qq} = [quantProps.MeanIntensity];
-        quantProps = regionprops3(comps_drop,quantImg,...
+        quantProps = regionprops3(comps_cond,quantImg,...
             'MeanIntensity','VoxelIdxList','VoxelValues');
         Condensate_intCell{ff}{qq} = [quantProps.MeanIntensity];
-
     end
+
+    Condensate_volCell{ff} = Cond_Volume_array;
+    Condensate_solCell{ff} = Cond_Solidity_array;
+    %Condensate_eloCell{ff} = vertcat(Condensate_elongation{:});
+    %Condensate_imgCell{ff} = vertcat(Condensate_centralSlices_store{:});
+    Condensate_centCell{ff} = Cond_Centroid_array;
+    Condensate_intCell{ff} = cell(1,numQuantChannels);
+        
+    Surface_volCell{ff} = Surf_Volume_array;
+    Surface_solCell{ff} = Surf_Solidity_array;
+    %Surface_eloCell{ff} = vertcat(Surface_elongation{:});
+    %Surface_imgCell{ff} = vertcat(Surface_centralSlices_store{:});
+    Surface_centCell{ff} = Surf_Centroid_array;
+    Surface_intCell{ff} = cell(1,numQuantChannels);
 
 
     % ---
     % Beginning nearest-neighbor distance calculation
 
-    if numDrop==0
+    if numCond==0
         Condensate_Surface_distCell{ff} = [];
         Surface_Condensate_distCell{ff} = NaN(size(Surf_Solidity_array));
     elseif numSurf==0
-        Condensate_Surface_distCell{ff} = NaN(size(Drop_Solidity_array));
+        Condensate_Surface_distCell{ff} = NaN(size(Cond_Solidity_array));
         Surface_Condensate_distCell{ff} = [];
     else
-        pwDistMatrix = pdist2(Drop_Centroid_array,Surf_Centroid_array,'euclidean');
+        pwDistMatrix = pdist2(Cond_Centroid_array,Surf_Centroid_array,'euclidean');
         Condensate_Surface_distCell{ff} = min(pwDistMatrix,[],2);
         Surface_Condensate_distCell{ff} = min(pwDistMatrix,[],1)';
     end
 
     % End nearest-neighbor distance calculation
     % ---
-
-    Condensate_volCell{ff} = Drop_Volume_array;
-    Condensate_solCell{ff} = Drop_Solidity_array;
-    % Droplet_eloCell{ff} = vertcat(Droplet_elongation{:});
-    % Droplet_imgCell{ff} = vertcat(Droplet_centralSlices_store{:});
-    % Droplet_centCell{ff} = vertcat(Droplet_cent_store{:});
-    % Droplet_Surface_distCell{ff} = vertcat(Droplet_Surface_dist{:});
-    % Droplet_intCell{ff} = cell(1,numQuantChannels);
-    % 
-    % 
-    % Surface_volCell{ff} = vertcat(Surface_volume{:});
-    % Surface_solCell{ff} = vertcat(Surface_solidity{:});
-    % Surface_eloCell{ff} = vertcat(Surface_elongation{:});
-    % Surface_imgCell{ff} = vertcat(Surface_centralSlices_store{:});
-    % Surface_centCell{ff} = vertcat(Surface_cent_store{:});
-    % Surface_Droplet_distCell{ff} = vertcat(Surface_Droplet_dist{:});
-    % Surface_intCell{ff} = cell(1,numQuantChannels);
     
     %continue
 
@@ -377,14 +372,12 @@ end
 % operator. Each element contains a vector, which then gets concatenated by
 % the vertcat command.
 
-Droplet_Volume = vertcat(Condensate_volCell{:});
-Droplet_Solidity = vertcat(Condensate_solCell{:});
-Droplet_Elongation = vertcat(Condensate_eloCell{:});
+Condensate_Volume = vertcat(Condensate_volCell{:});
+Condensate_Solidity = vertcat(Condensate_solCell{:});
 % Distance
 
 Surface_Volume = vertcat(Surface_volCell{:});
 Surface_Solidity = vertcat(Surface_solCell{:});
-Surface_Elongation = vertcat(Surface_eloCell{:});
 %Distance
 
 % ---
@@ -574,7 +567,7 @@ title('Selective analysis')
 subplot(3,3,9)
 cla
 [binCounts,binCenters] = ...
-    hist(Droplet_Solidity(Droplet_highSurface_inds),nBins);
+    hist(Condensate_Solidity(Droplet_highSurface_inds),nBins);
 hold on
 plot(binCenters,binCounts./sum(binCounts),...
     'k-','LineWidth',1)
@@ -583,7 +576,7 @@ plot(binCenters,binCounts./sum(binCounts),...
 plot(binCenters,binCounts./sum(binCounts),...
     'r--','LineWidth',1)
 [binCounts,binCenters] = ...
-    hist(Droplet_Solidity(~Droplet_highSurface_inds),nBins);
+    hist(Condensate_Solidity(~Droplet_highSurface_inds),nBins);
 plot(binCenters,binCounts./sum(binCounts),...
     'b:','LineWidth',1)
 hold off
