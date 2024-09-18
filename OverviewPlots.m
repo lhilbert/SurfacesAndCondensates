@@ -1,0 +1,323 @@
+%% --- load analysis results
+
+clear all
+load('ConditionSortedResults')
+
+numUniqConds = numel(uniqueCondNames);
+
+SurfCond_dist = zeros(numConds,1);
+SurfCond_dist_CI = zeros(2,numConds);
+
+CondSurf_dist = zeros(2,numConds);
+CondSurf_dist_CI = zeros(numConds,1);
+
+n_boot = 500;
+
+for cc = 1:numConds
+
+    thisCondInd = cc;
+
+    SurfCond_dist(cc) = mean(sortedS);
+
+    dist_vals = [sortedDistCell{thisCondInd}];
+    OP_S5P_vals = [sortedOPIntCell{2}{thisCondInd}];
+    OP_S2P_vals = [sortedOPIntCell{1}{thisCondInd}];
+    
+    dist_prctl_all(cc) =  prctile(dist_vals,prctile_val);
+    S5P_mean_all(cc) = mean(OP_S5P_vals);
+    S2P_mean_all(cc) = mean(OP_S2P_vals);
+
+    S5P_mean_CI(:,cc) = bootci(n_boot,...
+        @(xx)mean(xx),OP_S5P_vals);
+
+    S2P_mean_CI(:,cc) = bootci(n_boot,...
+        @(xx)mean(xx),OP_S2P_vals);
+
+    dist_prctl_CI(:,cc) = bootci(n_boot,...
+        @(xx)prctile(xx,prctile_val),dist_vals);
+
+    dist_prctl_CI(1,cc) = prctile(dist_vals,2);
+    dist_prctl_CI(2,cc) = prctile(dist_vals,8);
+
+end
+
+figure(1)
+clf
+
+S2P_min = 1;
+S2P_max = 1.3;
+S5P_min = 1;
+S5P_max = 1.25;
+dist_min = 0;
+dist_max = 0.8;
+
+
+%% -- Overview figure
+
+
+
+gene_names = {...
+    'drll2','foxd5','gadd45ga',...
+    'iscub','klf2b','ripply1',...
+    'vamp2','zgc::64022'};
+
+stage_names = {...
+    'Oblong','Sphere','Dome',...
+    '30% Epi.','50% Epi.'};
+
+gene_trajectory_inds = {...
+    [1,9,17,25,33]+0,...
+    [1,9,17,25,33]+1,...
+    [1,9,17,25,33]+2,...
+    [1,9,17,25,33]+3,...
+    [1,9,17,25,33]+4,...
+    [1,9,17,25,33]+5,...
+    [1,9,17,25,33]+6,...
+    [1,9,17,25,33]+7};
+
+example_gg = 8;
+
+subplot(3,3,1)
+errorbar(1:5,S5P_mean_all(gene_trajectory_inds{example_gg}),...
+    +S5P_mean_CI(2,gene_trajectory_inds{example_gg})...
+    -S5P_mean_all(gene_trajectory_inds{example_gg})',...
+    -S5P_mean_CI(1,gene_trajectory_inds{example_gg})...
+    +S5P_mean_all(gene_trajectory_inds{example_gg})',...
+    'ko-','Color',[1.0,0.0,0.0],'LineWidth',1,...
+    'MarkerFaceColor',[1,0,0])
+title('Pol II Ser5P Int. (a.u.)',...
+    'FontWeight','normal')
+set(gca,'XTickLabels','','YLim',[0.95,1.3],'XLim',[0.8,5.2],...
+    'YTick',0.9:0.1:1.3,'XTick',1:5)
+
+ylabel(gene_names(example_gg))
+
+
+subplot(3,3,4)
+errorbar(1:5,S2P_mean_all(gene_trajectory_inds{example_gg}),...
+    +S2P_mean_CI(2,gene_trajectory_inds{example_gg})...
+    -S2P_mean_all(gene_trajectory_inds{example_gg})',...
+    -S2P_mean_CI(1,gene_trajectory_inds{example_gg})...
+    +S2P_mean_all(gene_trajectory_inds{example_gg})',...
+    'ko-','Color',[0.5,0.5,0.5],'LineWidth',1,...
+    'MarkerFaceColor',[0.5,0.5,0.5])
+title('Pol II Ser2P Int. (a.u.)','FontWeight','normal')
+set(gca,'XTickLabels','','YLim',[0.95,1.2],'XLim',[0.8,5.2],...
+    'YTick',1:0.05:1.2,'XTick',1:5)
+
+
+subplot(3,3,7)
+errorbar(1:5,dist_prctl_all(gene_trajectory_inds{example_gg}),...
+    +dist_prctl_CI(2,gene_trajectory_inds{example_gg})...
+    -dist_prctl_all(gene_trajectory_inds{example_gg})',...
+    -dist_prctl_CI(1,gene_trajectory_inds{example_gg})...
+    +dist_prctl_all(gene_trajectory_inds{example_gg})',...
+    'ko-','Color',[0.0,0.0,0.0],'LineWidth',1,...
+    'MarkerFaceColor',[0,0,0])
+title('Gene-cluser dist. [\mum]','FontWeight','normal')
+set(gca,'XTickLabels',stage_names,...
+    'XTickLabelRotation',-0,'YLim',[0,1.5],'XLim',[0.8,5.2],...
+    'YTick',0:0.5:1.5,'XTick',1:5)
+
+
+
+subplot(1,3,2)
+cla
+
+gene_handles = zeros(1,8);
+
+gg_order = [8,1,7,5,2,3,4,6];
+width_vec = [2.5,1,1,1,1,1,1,1];
+color_cell = {...
+    [0,0,0],...
+    [0.6,0.6,0.6],...
+    [0.6,0.6,0.6],...
+    [0.6,0.6,0.6],...
+    [0.6,0.6,0.6],...
+    [0.6,0.6,0.6],...
+    [0.6,0.6,0.6],...
+    [0.6,0.6,0.6],...
+    };
+
+for gg = 1:8
+
+    inds = gene_trajectory_inds{gg_order(gg)};
+    gene_handles(gg) = plot(...
+        S5P_mean_all(inds),...
+        S2P_mean_all(inds),...
+        'LineStyle','-','LineWidth',width_vec(gg));
+    hold on
+    plot(...
+        S5P_mean_all(inds(1)),...
+        S2P_mean_all(inds(1)),...
+        'ks','MarkerSize',10)
+
+end
+
+set(gene_handles(1),'Color',[0,0,0])
+
+scatter(S5P_mean_all,S2P_mean_all,50,...
+   dist_prctl_all,'filled')
+
+xlabel('Mean S5P Int. (a.u.)')
+ylabel('Mean S2P Int. (a.u.)')
+
+set(gca,'XLim',[S5P_min,S5P_max],...
+    'YLim',[S2P_min,S2P_max],'CLim',[dist_min,dist_max])
+
+legend(gene_handles,gene_names(gg_order),...
+    'Location','Northwest')
+
+colorbar
+
+%% -- fit 2D polynomial surface
+
+inputMatrix = [S2P_mean_all,S5P_mean_all];
+outputVec = dist_prctl_all;
+
+modelfun = @(theta,xx) theta(1)...
+    +(xx(:,1)-1).*theta(2)...
+    +(xx(:,2)-1).*theta(3);
+
+[theta,~,~,~,RR] = ...
+    nlinfit(inputMatrix,outputVec,modelfun,[1,1,1]);
+
+Rsquared = 1 - sum(RR.^2)/sum(((outputVec-mean(outputVec)).^2));
+
+subplot(1,3,3)
+
+grid_N = 150; %150
+grid_vals = zeros(grid_N,grid_N);
+
+S2P_vec = linspace(S2P_min,S2P_max,grid_N);
+S5P_vec = linspace(S5P_min,S5P_max,grid_N);
+
+for mm = 1:grid_N
+    for nn = 1:grid_N
+
+        grid_vals(mm,nn) = modelfun(theta,[S2P_vec(mm),S5P_vec(nn)]);
+
+    end
+end
+
+cla
+imagesc(S5P_vec,S2P_vec,grid_vals,[0.1,1])
+set(gca,'YDir','normal')
+colorbar
+hold on
+
+scatter(S5P_mean_all,S2P_mean_all,30,...
+    dist_prctl_all,'filled',...
+    'MarkerEdgeColor','k')
+% plot(S5P_mean_all,S2P_mean_all,'k+')
+
+xlabel('Mean S5P Int. (a.u.)')
+ylabel('Mean S2P Int. (a.u.)')
+c = colorbar;
+c.Label.String='5-percentile distance [\mum]';
+%colormap(flipud(parula))
+colormap(flipud(parula))
+set(gca,'Box','on')
+
+vector_origin = [1.1,1.2];
+
+plot(vector_origin(1),vector_origin(2),'wo',...
+    'MarkerSize',10,...
+    'MarkerFaceColor',[1,1,1],...
+    'MarkerEdgeColor',[0,0,0])
+
+plot(vector_origin(1)+[0,theta(3).*0.017],...
+    vector_origin(2)+[0,theta(2).*0.017],...
+    'w-','LineWidth',1.5)
+
+plot(vector_origin(1)+[0,theta(2).*0.017],...
+    vector_origin(2)+[0,-theta(3).*0.017],...
+    'w--','LineWidth',1.5)
+
+text(1.02,1.27,sprintf(...
+    'd=%2.2f\\mum+%2.2f\\mum\\cdotI_{S2P}+%2.2f\\mum\\cdotI_{S5P},\nR^2=%5.5f',...
+    theta(1),theta(2),theta(3),Rsquared),...
+    'Color',[1,1,1])
+
+
+%% -- plot for all genes and stages
+
+figure(2)
+
+clf
+
+plot_order = [1,8,5,3,4,7,2,6];
+
+for pp = 1:8
+
+    gg = plot_order(pp)
+
+    subplot(3,8,pp)
+    errorbar(1:5,S5P_mean_all(gene_trajectory_inds{gg}),...
+        +S5P_mean_CI(2,gene_trajectory_inds{gg})...
+        -S5P_mean_all(gene_trajectory_inds{gg})',...
+        -S5P_mean_CI(1,gene_trajectory_inds{gg})...
+        +S5P_mean_all(gene_trajectory_inds{gg})',...
+        'ko-','Color',[1.0,0.0,0.0],'LineWidth',1,...
+        'MarkerFaceColor',[1,0,0])
+    title(gene_names{gg},...
+        'FontWeight','normal')
+    set(gca,'XTickLabels','','YLim',[0.95,1.3],'XLim',[0.8,5.2],...
+        'YTick',0.9:0.1:1.3,'XTick',1:5)
+
+    ylabel('Pol II Ser5P Int. (a.u.)')
+
+    if pp>1
+        ylabel('')
+        set(gca,'YTickLabel',[])
+    end
+
+
+    subplot(3,8,8+pp)
+    errorbar(1:5,S2P_mean_all(gene_trajectory_inds{gg}),...
+        +S2P_mean_CI(2,gene_trajectory_inds{gg})...
+        -S2P_mean_all(gene_trajectory_inds{gg})',...
+        -S2P_mean_CI(1,gene_trajectory_inds{gg})...
+        +S2P_mean_all(gene_trajectory_inds{gg})',...
+        'ko-','Color',[0.5,0.5,0.5],'LineWidth',1,...
+        'MarkerFaceColor',[0.5,0.5,0.5])
+    
+    ylabel('Pol II Ser2P Int. (a.u.)')
+    set(gca,'XTickLabels','','YLim',[0.9,1.3],'XLim',[0.8,5.2],...
+        'YTick',0.9:0.1:1.3,'XTick',1:5)
+    if pp>1
+        ylabel('')
+        set(gca,'YTickLabel',[])
+    end
+
+
+    subplot(3,8,16+pp)
+    errorbar(1:5,dist_prctl_all(gene_trajectory_inds{gg}),...
+        +dist_prctl_CI(2,gene_trajectory_inds{gg})...
+        -dist_prctl_all(gene_trajectory_inds{gg})',...
+        -dist_prctl_CI(1,gene_trajectory_inds{gg})...
+        +dist_prctl_all(gene_trajectory_inds{gg})',...
+        'ko-','Color',[0.0,0.0,0.0],'LineWidth',1,...
+        'MarkerFaceColor',[0,0,0])
+    
+    ylabel('Gene-cluser dist. [\mum]')
+    set(gca,'XTickLabels',stage_names,...
+        'XTickLabelRotation',-45,'YLim',[0,1.5],'XLim',[0.8,5.2],...
+        'YTick',0:0.5:1.5,'XTick',1:5)
+    if pp>1
+        ylabel('')
+        set(gca,'YTickLabel',[])
+    end
+
+end
+
+
+%% -- generate output of counts of nuclei and observations
+
+for cc = 1:numConds
+
+    disp(sprintf('%s, %d nuclei, %d genes',...
+        sortedCondNames{cc},...
+        sortedNumNuclei(cc),numel(sortedDistCell{cc})))
+
+end

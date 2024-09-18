@@ -3,7 +3,7 @@ clear all
 % Specify the directory that contains the extracted files from the last
 % step, where you extracted from the raw files obtained from the microscope
 sourceDirectory = ...
-    './ExtractedStacks_Titration/**/';
+    './ExtractedStacks/**/';
 
 % Channels for segmentation
 Condensate_SegChannel = 2; % Channel used to detect droplets
@@ -21,14 +21,14 @@ quantBlurSigma = [0,0];
 
 % Parameters for the blurring during image preprocessing
 Condensate_segBlurSigma_object = 0.5; % in microns
-Condensate_segBlurSigma_BG_removal = 1.5; % in microns
+Condensate_segBlurSigma_BG_removal = 5.0; % in microns
 % Number of standard deviations above background for the robust threshold
-Condensate_seg_numStdDev = 12.0;
+Condensate_seg_numStdDev = 6.0;
 
 % Blurring and segmentation parameters for the Surface
 Surface_segBlurSigma_object = 0.5; % in microns
-Surface_segBlurSigma_BG_removal = 1.5; % in microns
-Surface_seg_numStdDev = 12.0; % number of standard deviations in robust threshold
+Surface_segBlurSigma_BG_removal = 5.0; % in microns
+Surface_seg_numStdDev = 6.0; % number of standard deviations in robust threshold
 
 % Minimum volumes for condensate and surface objects
 Condensate_minVol = 0.02; % cubic microns
@@ -97,7 +97,7 @@ Surface_Condensate_distCell = cell(1,numFiles);
 
 numQuantChannels = numel(quantChannels);
 
-for ff = 1:numFiles
+parfor ff = 1:numFiles
 	
 	fprintf('Processing file %d of %d\n',ff,numFiles)
 	
@@ -217,8 +217,9 @@ for ff = 1:numFiles
 
     % Uncomment the following two lines if you want to check the extracted
     % images one by one
-   % fprintf('File name: %s\n',thisFilePath)
-	waitforbuttonpress
+%     fprintf('File name: %s, Condition: %s\n',...
+%         thisFilePath,thisCondName)
+% 	waitforbuttonpress
 	
 	% --- Connected component segmentation of surfaces
 	comps_surf = bwconncomp(SurfaceSegMask,18);
@@ -358,231 +359,99 @@ end
 % Surface_intCell = Surface_intCell(validFileFlag);
 % Surface_nucIntCell = Surface_nucIntCell(validFileFlag);
 
+%% Sort into conditions
 
-%% --- Plotting of object properties
+uniqueCondNames = unique(condNames);
+numPlotSets = numel(uniqueCondNames);
+fileIndsCell = cell(1,numPlotSets);
+numFiles_perCond = zeros(1,numPlotSets);
+for cc = 1:numPlotSets
+	fileIndsCell{cc} = cellfun(...
+		@(elmt)strcmp(elmt,uniqueCondNames{cc}),condNames);
+	numFiles_perCond(cc) = sum(fileIndsCell{cc});
+end
 
-% Before we can plot the analysis results, we need to bring them into the
-% format of vectors of numbers. Below, we carry out the according
-% reorganization operations.
+sortedCondNames = cell(1,numPlotSets);
+sortedNumFiles = zeros(1,numPlotSets);
 
-% ---
-% Reorganize object shape properties into vector arrays. In this case, it
-% is relatively easy. We have a cell array with one element per cell
-% nucleus. We then call up the content of each element using the :
-% operator. Each element contains a vector, which then gets concatenated by
-% the vertcat command.
+sortedDropletPixelSize_xy = cell(1,numPlotSets);
+sortedDropletPixelSize_z = cell(1,numPlotSets);
+sortedSurfacePixelSize_xy = cell(1,numPlotSets);
+sortedSurfacePixelSize_z = cell(1,numPlotSets);
 
-Condensate_Volume = vertcat(Condensate_volCell{:});
-Condensate_Solidity = vertcat(Condensate_solCell{:});
-% Distance
+sortedDropSurfDistCell = cell(1,numPlotSets);
+sortedSurfDropDistCell = cell(1,numPlotSets);
 
-Surface_Volume = vertcat(Surface_volCell{:});
-Surface_Solidity = vertcat(Surface_solCell{:});
-%Distance
+sortedDropletNumCell = cell(1,numPlotSets);
+sortedDropletVolCell = cell(1,numPlotSets);
+sortedDropletSolCell = cell(1,numPlotSets);
+sortedDropletEloCell = cell(1,numPlotSets);
+sortedDropletCentralSliceCell = cell(1,numPlotSets);
+sortedDropletCentroidsCell = cell(1,numPlotSets);
+sortedDropletIntCell = cell(1,numQuantChannels);
 
-% ---
-% Reorganize the object intensities into vector arrays. For the object
-% intensities, it is a little tricker. We need to resort ot using the
-% cellfun operation, as we need to make a two-index call, calling into each
-% element of the top cell array for a specific sub-element.
+sortedSurfaceNumCell = cell(1,numPlotSets);
+sortedSurfaceVolCell = cell(1,numPlotSets);
+sortedSurfaceSolCell = cell(1,numPlotSets);
+sortedSurfaceEloCell = cell(1,numPlotSets);
+sortedSurfaceCentralSliceCell = cell(1,numPlotSets);
+sortedSurfaceCentroidsCell = cell(1,numPlotSets);
+sortedSurfaceIntCell = cell(1,numQuantChannels);
 
-Droplet_DNA_intensity = cellfun(@(elmt)elmt{1}',Condensate_intCell,...
-    'UniformOutput',false);
-Droplet_DNA_intensity = [Droplet_DNA_intensity{:}];
-Droplet_Droplet_intensity = cellfun(@(elmt)elmt{2}',Condensate_intCell,...
-    'UniformOutput',false);
-Droplet_Droplet_intensity = [Droplet_Droplet_intensity{:}];
-Droplet_Surface_intensity = cellfun(@(elmt)elmt{3}',Condensate_intCell,...
-    'UniformOutput',false);
-Droplet_Surface_intensity = [Droplet_Surface_intensity{:}];
+for qq = 1:numQuantChannels
+	sortedDropletIntCell{qq} = cell(1,numPlotSets);
+	sortedSurfaceIntCell{qq} = cell(1,numPlotSets);
+end
 
-Surface_DNA_intensity = cellfun(@(elmt)elmt{1}',Surface_intCell,...
-    'UniformOutput',false);
-Surface_DNA_intensity = [Surface_DNA_intensity{:}];
-Surface_Droplet_intensity = cellfun(@(elmt)elmt{2}',Surface_intCell,...
-    'UniformOutput',false);
-Surface_Droplet_intensity = [Surface_Droplet_intensity{:}];
-Surface_Surface_intensity = cellfun(@(elmt)elmt{3}',Surface_intCell,...
-    'UniformOutput',false);
-Surface_Surface_intensity = [Surface_Surface_intensity{:}];
+for cc = 1:numPlotSets
+	
+	sortedCondNames{cc} = ...
+		condNames(fileIndsCell{cc});
+	sortedCondNames{cc} = sortedCondNames{cc}{1};
+	
+	sortedNumFiles(cc) = sum(fileIndsCell{cc});
 
-% Histogram
+    sortedDropletNumCell{cc} = numCond_vec(fileIndsCell{cc});
+    sortedSurfaceNumCell{cc} = numSurf_vec(fileIndsCell{cc});
 
-figure(1)
-clf
+    CS_dists = vertcat(Condensate_Surface_distCell{fileIndsCell{cc}});
+    SC_dists = vertcat(Surface_Condensate_distCell{fileIndsCell{cc}});
 
-subplot(1,1,1)
-cla
-Surface_Droplet_distCell_vertical_array = vertcat(Surface_Condensate_distCell{:})
-hist(Surface_Droplet_distCell_vertical_array,100);
+    sortedDropSurfDistCell{cc} = CS_dists;
+    sortedSurfDropDistCell{cc} = CS_dists;
 
-[binCounts,binCenters] = ...
-    hist(Surface_Droplet_distCell_vertical_array,nBins);
-hold on
-plot(binCenters,binCounts/(0.01*sum(binCounts)),...
-    'k-','LineWidth',1)
-hold off
-ylabel('Count')
-xlabel('Distance [µm]')
-set(gca,'Box','on')
-title('Selective analysis')
+	Drop_vols = vertcat(Condensate_volCell{fileIndsCell{cc}});
+    Drop_sols = vertcat(Condensate_solCell{fileIndsCell{cc}});
+	Drop_ints = Condensate_intCell(fileIndsCell{cc});
+    
+    sortedDropletVolCell{cc} = Drop_vols;
+    sortedDropletSolCell{cc} = Drop_sols;
+                    
+	Surf_vols = vertcat(Surface_volCell{fileIndsCell{cc}});
+    Surf_sols = vertcat(Surface_solCell{fileIndsCell{cc}});
+	Surf_ints = Surface_intCell(fileIndsCell{cc});
+    
+    sortedSurfaceVolCell{cc} = Surf_vols;
+    sortedSurfaceSolCell{cc} = Surf_sols;
+	
+	for qq = 1:numQuantChannels
+        
+		sortedDropletIntCell{qq}{cc} = vertcat(arrayfun(...
+			@(ind)Condensate_intCell{ind}{qq},....
+			find(fileIndsCell{cc}),...
+			'UniformOutput',false));
+		sortedDropletIntCell{qq}{cc} = vertcat(...
+            sortedDropletIntCell{qq}{cc}{:});
 
+		sortedSurfaceIntCell{qq}{cc} = vertcat(arrayfun(...
+			@(ind)Surface_intCell{ind}{qq},....
+			find(fileIndsCell{cc}),...
+			'UniformOutput',false));
+		sortedSurfaceIntCell{qq}{cc} = vertcat(...
+            sortedSurfaceIntCell{qq}{cc}{:});
+        
+	end
+	
+end
 
-figure(2)
-
-Surface_S2P_intensity = cellfun(@(elmt)elmt{1}',Surface_intCell,...
-    'UniformOutput',false);
-Surface_S2P_intensity = [Surface_S2P_intensity{:}];
-subplot(1,1,1)
-plot(Surface_Droplet_distCell_vertical_array,Surface_S2P_intensity,...
-    'k.','MarkerSize',1)
-title('Pol II clusters')
-xlabel('Distance [µm]')
-ylabel('S2P intensity')
-set(gca,'Box','on')
-
-
-
-
-
-subplot(2,3,1)
-plot(Droplet_DNA_intensity,Droplet_Surface_intensity,...
-    'k.','MarkerSize',1)
-title('Pol II clusters')
-xlabel('Distance [µm]')
-ylabel('Surface intensity')
-set(gca,'XLim',[0.4,2.4],'YLim',[0.4,2.4])
-
-subplot(2,3,2)
-plot(Droplet_DNA_intensity,Droplet_Droplet_intensity,...
-    'k.','MarkerSize',1)
-title('Pol II clusters')
-xlabel('DNA intensity')
-ylabel('Distance [µm]')
-set(gca,'XLim',[0.4,2.4],'YLim',[0.4,2.4])
-
-subplot(2,3,3)
-plot(Droplet_Droplet_intensity,Droplet_Surface_intensity,...
-    'k.','MarkerSize',1)
-title('Pol II clusters')
-xlabel('Pol II Ser5P intensity')
-ylabel('Surface intensity')
-set(gca,'XLim',[0.4,2.4],'YLim',[0.4,2.4])
-
-
-
-
-subplot(2,3,4)
-plot(Surface_DNA_intensity,Surface_Surface_intensity,...
-    'k.','MarkerSize',1)
-title('Surface')
-xlabel('DNA intensity')
-ylabel('Surface intensity')
-set(gca,'XLim',[0.4,2.4],'YLim',[0.4,2.4])
-
-subplot(2,3,5)
-plot(Surface_DNA_intensity,Surface_Droplet_intensity,...
-    'k.','MarkerSize',1)
-title('Surface')
-xlabel('DNA intensity')
-ylabel('Pol II Ser5P intensity')
-set(gca,'XLim',[0.4,2.4],'YLim',[0.4,2.4])
-
-subplot(2,3,6)
-plot(Surface_Droplet_intensity,Surface_Surface_intensity,...
-    'k.','MarkerSize',1)
-title('Surface')
-xlabel('Pol II Ser5P intensity')
-ylabel('Surface intensity')
-set(gca,'XLim',[0.4,2.4],'YLim',[0.4,2.4])
-
-
-%% --- Selective analysis of high Surface intensity objects
-
-% Based on the scatter plots of object intensities, it looks as if there is
-% a distinct population of high Surface intensity objects. This population is
-% present no matter whether we segment Surface directly, or actually
-% Pol II clusters. This suggests that Pol II clusters with high Surface
-% levels might be reflecting the same population of objects as the high
-% intensity Surface. We can check on this a bit more closely. In
-% concrete terms, we will compare the shapes of the objects obtained by
-% both approaches of segmentation.
-
-SurfaceIntCutoff = 1.25;
-Droplet_highSurface_inds = Droplet_Surface_intensity>SurfaceIntCutoff;
-Surface_highSurface_inds = Surface_Surface_intensity>SurfaceIntCutoff;
-
-figure(1)
-
-subplot(3,3,7)
-cla
-nBins = 10;
-[binCounts,binCenters] = ...
-    hist(Droplet_DNA_intensity(Droplet_highSurface_inds),nBins);
-plot([1,1],[0,0.3],'k-','Color',[0.5,0.5,0.5])
-hold on
-plot(binCenters,binCounts./sum(binCounts),...
-    'k-','LineWidth',1)
-[binCounts,binCenters] = ...
-    hist(Surface_DNA_intensity(Surface_highSurface_inds),nBins);
-plot(binCenters,binCounts./sum(binCounts),...
-    'r--','LineWidth',1)
-[binCounts,binCenters] = ...
-    hist(Droplet_DNA_intensity(~Droplet_highSurface_inds),nBins);
-plot(binCenters,binCounts./sum(binCounts),...
-    'b:','LineWidth',1)
-hold off
-legend('Pol II Ser5P (high Surface)','Surface (high Surface)',...
-    'Pol II Ser5P (low Surface)')
-xlabel('Normalized DNA intensity')
-ylabel('Normalized count')
-set(gca,'Box','on')
-title('Selective analysis')
-
-
-subplot(3,3,8)
-cla
-[binCounts,binCenters] = ...
-    hist(Droplet_Elongation(Droplet_highSurface_inds),nBins);
-hold on
-plot(binCenters,binCounts./sum(binCounts),...
-    'k-','LineWidth',1)
-[binCounts,binCenters] = ...
-    hist(Surface_Elongation(Surface_highSurface_inds),nBins);
-plot(binCenters,binCounts./sum(binCounts),...
-    'r--','LineWidth',1)
-[binCounts,binCenters] = ...
-    hist(Droplet_Elongation(~Droplet_highSurface_inds),nBins);
-plot(binCenters,binCounts./sum(binCounts),...
-    'b:','LineWidth',1)
-hold off
-legend('Pol II Ser5P (high Surface)','Surface (high Surface)',...
-    'Pol II Ser5P (low Surface)')
-xlabel('Elongation')
-ylabel('Normalized count')
-set(gca,'Box','on')
-title('Selective analysis')
-
-
-subplot(3,3,9)
-cla
-[binCounts,binCenters] = ...
-    hist(Condensate_Solidity(Droplet_highSurface_inds),nBins);
-hold on
-plot(binCenters,binCounts./sum(binCounts),...
-    'k-','LineWidth',1)
-[binCounts,binCenters] = ...
-    hist(Surface_Solidity(Surface_highSurface_inds),nBins);
-plot(binCenters,binCounts./sum(binCounts),...
-    'r--','LineWidth',1)
-[binCounts,binCenters] = ...
-    hist(Condensate_Solidity(~Droplet_highSurface_inds),nBins);
-plot(binCenters,binCounts./sum(binCounts),...
-    'b:','LineWidth',1)
-hold off
-legend('Pol II Ser5P (high Surface)','Surface (high Surface)',...
-    'Pol II Ser5P (low Surface)','Location','Southeast')
-xlabel('Solidity')
-ylabel('Normalized count')
-set(gca,'Box','on')
-title('Selective analysis')
+save('sortedResultsBundle')
