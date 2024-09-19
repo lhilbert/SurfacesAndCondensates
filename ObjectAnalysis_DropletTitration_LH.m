@@ -34,6 +34,9 @@ Surface_seg_numStdDev = 6.0; % number of standard deviations in robust threshold
 Condensate_minVol = 0.02; % cubic microns
 Surface_minVol = 0.02; % cubic microns
 
+surf_DBSCAN_epsilon = 3;
+cond_DBSCAN_epsilon = 3;
+
 % end of analysis parameter section, do not change anything else in
 % this section, all necessary parameters are listed above
 
@@ -228,9 +231,6 @@ parfor ff = 1:numFiles
 	comps_surf.NumObjects = sum(numPxls>=minPixels);
 	comps_surf.PixelIdxList = comps_surf.PixelIdxList(numPxls>=minPixels);
 	numPxls = cellfun(@(elmt)numel(elmt),comps_surf.PixelIdxList);
-		
-	numSurf = comps_surf.NumObjects;
-	numSurf_vec(ff) = numSurf;
 
 	% --- Connected component segmentation of condensates
 	comps_cond = bwconncomp(CondensateSegMask,18);
@@ -240,12 +240,113 @@ parfor ff = 1:numFiles
 	comps_cond.PixelIdxList = comps_cond.PixelIdxList(numPxls>=minPixels);
 	numPxls = cellfun(@(elmt)numel(elmt),comps_cond.PixelIdxList);
 		
-	numCond = comps_cond.NumObjects;
-    numCond_vec(ff) = numCond;
+    % --- connect nearby objects into clusters using DBSCAN, end
+
+    if comps_surf.NumObjects>0 && surf_DBSCAN_epsilon > 0
+
+        props_surf = regionprops3(comps_surf,imgStack{Surface_SegChannel},...
+            'Centroid');
+
+        centroid_coords = ...
+            props_surf.Centroid.*[pixelSize,pixelSize,zStepSize];
+        dbscan_inds = ...
+            dbscan(centroid_coords,surf_DBSCAN_epsilon,1);
+
+        unique_inds = unique(dbscan_inds);
+        num_inds = numel(unique_inds);
+        updated_comps = comps_surf;
+        updated_comps.NumObjects = num_inds;
+        updated_comps.PixelIdxList = cell(1,num_inds);
+        for ii = 1:num_inds
+            updated_comps.PixelIdxList{ii} = ...
+                sort(vertcat(comps_surf.PixelIdxList{...
+                dbscan_inds==unique_inds(ii)} ...
+                ));
+        end
+        comps_surf = updated_comps;
+
+        %Display hierarchical clustering
+        LL = labelmatrix(comps_surf);
+
+        centerPlaneInd = round(imgSize(3).*0.5);
+
+        subplot(1,3,1)
+        imagesc(squeeze(max(SurfaceSegMask,[],3)))
+        axis tight equal
+        title('Max cluster mask',FontSize=20);
+
+        subplot(1,3,2)
+        imagesc(squeeze(max(LL,[],3)))
+        axis tight equal
+        title('Max cluster comps',FontSize=20);
+
+        subplot(1,3,3)
+        imagesc(squeeze(LL(:,:,centerPlaneInd)))
+        axis tight equal
+        title('Mid cluster comps',FontSize=20);
+        %set(gca,'Colormap',lines)
+
+        %waitforbuttonpress
+
+    end
+
+    if comps_cond.NumObjects>0 && cond_DBSCAN_epsilon > 0
+
+        props_cond = regionprops3(comps_cond,imgStack{Condensate_SegChannel},...
+            'Centroid');
+
+        centroid_coords = ...
+            props_cond.Centroid.*[pixelSize,pixelSize,zStepSize];
+        dbscan_inds = ...
+            dbscan(centroid_coords,cond_DBSCAN_epsilon,1);
+
+        unique_inds = unique(dbscan_inds);
+        num_inds = numel(unique_inds);
+        updated_comps = comps_surf;
+        updated_comps.NumObjects = num_inds;
+        updated_comps.PixelIdxList = cell(1,num_inds);
+        for ii = 1:num_inds
+            updated_comps.PixelIdxList{ii} = ...
+                sort(vertcat(comps_cond.PixelIdxList{...
+                dbscan_inds==unique_inds(ii)} ...
+                ));
+        end
+        comps_cond = updated_comps;
+
+        %Display hierarchical clustering
+        LL = labelmatrix(comps_cond);
+
+        centerPlaneInd = round(imgSize(3).*0.5);
+
+        subplot(1,3,1)
+        imagesc(squeeze(max(CondensateSegMask,[],3)))
+        axis tight equal
+        title('Max cluster mask',FontSize=20);
+
+        subplot(1,3,2)
+        imagesc(squeeze(max(LL,[],3)))
+        axis tight equal
+        title('Max cluster comps',FontSize=20);
+
+        subplot(1,3,3)
+        imagesc(squeeze(LL(:,:,centerPlaneInd)))
+        axis tight equal
+        title('Mid cluster comps',FontSize=20);
+        %set(gca,'Colormap',lines)
+
+        %waitforbuttonpress
+
+    end
+
+
+    % --- connect nearby objects into clusters using DBSCAN, end
 
     props_surf = regionprops3(comps_surf,imgStack{Surface_SegChannel},...
         'Volume','VoxelValues','Solidity','VoxelIdxList',...
         'BoundingBox','Centroid');
+
+    numSurf = comps_surf.NumObjects;
+    numSurf_vec(ff) = numSurf;
 
     Surf_Volume_array = [props_surf.Volume].*pixelSize.^2.*zStepSize;
     if numSurf>0
@@ -257,11 +358,14 @@ parfor ff = 1:numFiles
         Surf_Centroid_array = [];
     end
     Surf_Solidity_array = [props_surf.Solidity];
-   
 
+    
     props_drop = regionprops3(comps_cond,imgStack{Condensate_SegChannel},...
         'Volume','VoxelValues','Solidity','VoxelIdxList',...
         'BoundingBox','Centroid');
+
+    numCond = comps_cond.NumObjects;
+    numCond_vec(ff) = numCond;
 
     Cond_Volume_array = [props_drop.Volume].*pixelSize.^2.*zStepSize;
     if numCond>0
