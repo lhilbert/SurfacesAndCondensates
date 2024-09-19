@@ -273,19 +273,6 @@ parfor ff = 1:numFiles
         Cond_Centroid_array = [];
     end
     Cond_Solidity_array = [props_drop.Solidity];
-   
-
-    cond_intCell{ff} = cell(1,numQuantChannels);
-    drop_intCell{ff} = cell(1,numQuantChannels);
-    for qq = 1:numQuantChannels
-        quantImg = imgStack{quantChannels(qq)};
-        quantProps = regionprops3(comps_surf,quantImg,...
-            'MeanIntensity','VoxelIdxList','VoxelValues');
-        Surface_intCell{ff}{qq} = [quantProps.MeanIntensity];
-        quantProps = regionprops3(comps_cond,quantImg,...
-            'MeanIntensity','VoxelIdxList','VoxelValues');
-        Condensate_intCell{ff}{qq} = [quantProps.MeanIntensity];
-    end
 
     Condensate_volCell{ff} = Cond_Volume_array;
     Condensate_solCell{ff} = Cond_Solidity_array;
@@ -300,6 +287,16 @@ parfor ff = 1:numFiles
     %Surface_imgCell{ff} = vertcat(Surface_centralSlices_store{:});
     Surface_centCell{ff} = Surf_Centroid_array;
     Surface_intCell{ff} = cell(1,numQuantChannels);
+
+    for qq = 1:numQuantChannels
+        quantImg = imgStack{quantChannels(qq)};
+        quantProps = regionprops3(comps_surf,quantImg,...
+            'MeanIntensity','VoxelIdxList','VoxelValues');
+        Surface_intCell{ff}{qq} = [quantProps.MeanIntensity];
+        quantProps = regionprops3(comps_cond,quantImg,...
+            'MeanIntensity','VoxelIdxList','VoxelValues');
+        Condensate_intCell{ff}{qq} = [quantProps.MeanIntensity];
+    end
 
 
     % ---
@@ -418,7 +415,7 @@ for cc = 1:numPlotSets
     SC_dists = vertcat(Surface_Condensate_distCell{fileIndsCell{cc}});
 
     sortedDropSurfDistCell{cc} = CS_dists;
-    sortedSurfDropDistCell{cc} = CS_dists;
+    sortedSurfDropDistCell{cc} = SC_dists;
 
 	Drop_vols = vertcat(Condensate_volCell{fileIndsCell{cc}});
     Drop_sols = vertcat(Condensate_solCell{fileIndsCell{cc}});
