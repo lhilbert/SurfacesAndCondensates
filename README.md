@@ -33,4 +33,8 @@ List of such files:
 # Example data
 Example image data for processing are available via Zenodo. We recommend downloading 3-5 of the .nd2 files from the following data repository
 
+First experimental repeat:
 [https://zenodo.org/uploads/13785805](https://zenodo.org/records/13788484)
+
+Second experimental repeat:
+[https://doi.org/10.5281/zenodo.13788846](https://doi.org/10.5281/zenodo.13788846)
