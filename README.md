@@ -20,9 +20,17 @@ Also set the analysis parameters in the top section.
 You can run the script in review and parameter adjustment mode if you comment out the following lines in the first for loop:
 fprintf('File name: %s\n',thisFilePath)
 waitforbuttonpress
+Once the analysis is finished, the results of the analysis will be stored into a file sortedREsultBundle.mat
 
+## Graphs and statistics of the analysis results
+
+After the image analysis itself has completed, you can use further scripts to generate overview plots and statistical analysis.
+
+List of such files:
+- OverviewPlots.m
+- ...
 
 # Example data
 Example image data for processing are available via Zenodo. We recommend downloading 3-5 of the .nd2 files from the following data repository
 
-https://zenodo.org/uploads/13785805
+[https://zenodo.org/uploads/13785805](https://zenodo.org/records/13788484)
