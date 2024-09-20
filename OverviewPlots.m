@@ -271,6 +271,9 @@ ylabel('Cond-Surf distance [\mum]')
 
 %% --- Scatter plots of intensities and solidity
 
+figure(2)
+clf
+
 for cc = 1:numUniqConds
 
     thisCondInd = cc;
@@ -317,3 +320,52 @@ for cc = 1:numUniqConds
     
 
 end
+
+%% --- make plot of full and control condition combined
+
+figure(3)
+
+clf
+
+lineStyles = {'k-','r--'};
+
+for_count = 0;
+
+for cc = [1,6]
+
+    thisCondInd = cc;
+    for_count = for_count + 1;
+    
+    % --- object volume and solidity calculation, start
+    SurfVol = sortedSurfaceVolCell{cc};
+    SurfSol = sortedSurfaceSolCell{cc};
+    CondVol = sortedDropletVolCell{cc};
+    CondSol = sortedDropletSolCell{cc};
+    % --- object volume and solidity calculation, end
+
+    % --- object intensity calculation, start
+    SurfSurf_Int = sortedSurfaceIntCell{1}{cc};
+    SurfCond_Int = sortedSurfaceIntCell{2}{cc};
+    CondSurf_Int = sortedDropletIntCell{1}{cc};
+    CondCond_Int = sortedDropletIntCell{2}{cc};
+    % --- object intensity calculation, end
+    
+    scatter(CondSurf_Int,CondCond_Int,...
+        CondVol./7,'filled')
+    colormap(flipud(parula))
+    set(gca,'CLim',[0,800],'Box','on')
+    set(gca,'XLim',[0,15000],'YLim',[0,25000])
+%     a=colorbar;
+%     a.Label.String = 'Cond. Volume [\mum^3]';
+    xlabel('Int. Surface')
+    ylabel('Int. X-Motif')
+
+    hold on
+
+    sortCondVol = sort(CondVol,'descend');
+    sprintf('%s, top 1-percentile: %2.2f',...
+        sortedCondNames{cc},prctile(sortCondVol,99))
+
+end
+
+legend(sortedCondNames([1,6]))
