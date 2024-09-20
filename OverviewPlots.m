@@ -43,6 +43,9 @@ SurfCond_dist_CI = zeros(2,numUniqConds);
 CondSurf_dist = zeros(1,numUniqConds);
 CondSurf_dist_CI = zeros(2,numUniqConds);
 
+IntCorr = zeros(1,numUniqConds);
+IntCorr_CI = zeros(2,numUniqConds);
+
 n_boot = 500;
 
 for cc = 1:numUniqConds
@@ -98,6 +101,18 @@ for cc = 1:numUniqConds
     CondCond_Int(cc) = mean(sortedDropletIntCell{2}{cc});
     CondCond_Int_CI(:,cc) = bootci(...
         n_boot,@mean,sortedDropletIntCell{2}{cc});
+
+    IntCorr(cc) = corr(sortedDropletIntCell{1}{cc},...
+        sortedDropletIntCell{2}{cc});
+    IntCorr_CI(:,cc) = bootci(...
+        n_boot,@(xx,yy)corr(xx,yy),sortedDropletIntCell{1}{cc},...
+        sortedDropletIntCell{2}{cc});
+
+    if numel(sortedDropletIntCell{1}{cc})<100
+        IntCorr(cc) = NaN;
+        IntCorr_CI(:,cc) = NaN;
+    end
+
     % --- object intensity calculation, end
     
     SurfCond_dist(cc) = mean(sortedSurfDropDistCell{cc});
@@ -123,7 +138,7 @@ clf
 
 
 
-subplot(2,6,1)
+subplot(3,6,1)
 errorbar(1:numUniqConds, ...
     numSurf,...
     numSurf_CI(2,:)-numSurf,...
@@ -135,7 +150,7 @@ set(gca,'XTick',1:numUniqConds,'XTickLabel',sortedCondNames,...
 ylabel('Number surfaces')
 title('Surfaces')
 
-subplot(2,6,2)
+subplot(3,6,2)
 errorbar(1:numUniqConds, ...
     SurfVol,...
     SurfVol_CI(2,:)-SurfVol,...
@@ -146,7 +161,7 @@ set(gca,'XTick',1:numUniqConds,'XTickLabel',sortedCondNames,...
     'XTickLabelRotation',45,'XLim',[0.5,numUniqConds+0.5])
 ylabel('Surf Vol [\mum^3]')
 
-subplot(2,6,3)
+subplot(3,6,3)
 errorbar(1:numUniqConds, ...
     SurfSol,...
     SurfSol_CI(2,:)-SurfSol,...
@@ -159,7 +174,7 @@ ylabel('Surf Solidity')
 
 
 
-subplot(2,6,7)
+subplot(3,6,7)
 errorbar(1:numUniqConds, ...
     SurfSurf_Int,...
     SurfSurf_Int_CI(2,:)-SurfSurf_Int,...
@@ -170,7 +185,7 @@ set(gca,'XTick',1:numUniqConds,'XTickLabel',sortedCondNames,...
     'XTickLabelRotation',45,'XLim',[0.5,numUniqConds+0.5])
 ylabel('Surf-Surf Int.')
 
-subplot(2,6,8)
+subplot(3,6,8)
 errorbar(1:numUniqConds, ...
     SurfCond_Int,...
     SurfCond_Int_CI(2,:)-SurfCond_Int,...
@@ -182,7 +197,7 @@ set(gca,'XTick',1:numUniqConds,'XTickLabel',sortedCondNames,...
 ylabel('Surf-Cond Int.')
 
 
-subplot(2,6,9)
+subplot(3,6,9)
 errorbar(1:numUniqConds, ...
     SurfCond_dist,...
     SurfCond_dist_CI(2,:)-SurfCond_dist,...
@@ -196,7 +211,7 @@ ylabel('Surf-Cond distance [\mum]')
 
 
 
-subplot(2,6,4)
+subplot(3,6,4)
 errorbar(1:numUniqConds, ...
     numCond,...
     numCond_CI(2,:)-numCond,...
@@ -208,7 +223,7 @@ set(gca,'XTick',1:numUniqConds,'XTickLabel',sortedCondNames,...
 ylabel('Number condensates')
 title('Condensates')
 
-subplot(2,6,5)
+subplot(3,6,5)
 errorbar(1:numUniqConds, ...
     CondVol,...
     CondVol_CI(2,:)-CondVol,...
@@ -219,7 +234,7 @@ set(gca,'XTick',1:numUniqConds,'XTickLabel',sortedCondNames,...
     'XTickLabelRotation',45,'XLim',[0.5,numUniqConds+0.5])
 ylabel('Cond Vol [\mum^3]')
 
-subplot(2,6,6)
+subplot(3,6,6)
 errorbar(1:numUniqConds, ...
     CondSol,...
     CondSol_CI(2,:)-CondSol,...
@@ -232,7 +247,7 @@ ylabel('Cond Solidity')
 
 
 
-subplot(2,6,10)
+subplot(3,6,10)
 errorbar(1:numUniqConds, ...
     CondSurf_Int,...
     CondSurf_Int_CI(2,:)-CondSurf_Int,...
@@ -243,7 +258,7 @@ set(gca,'XTick',1:numUniqConds,'XTickLabel',sortedCondNames,...
     'XTickLabelRotation',45,'XLim',[0.5,numUniqConds+0.5])
 ylabel('Cond-Surf Int.')
 
-subplot(2,6,11)
+subplot(3,6,11)
 errorbar(1:numUniqConds, ...
     CondCond_Int,...
     CondCond_Int_CI(2,:)-CondCond_Int,...
@@ -257,7 +272,7 @@ ylabel('Cond-Cond Int.')
 
 
 
-subplot(2,6,12)
+subplot(3,6,12)
 errorbar(1:numUniqConds, ...
     CondSurf_dist,...
     CondSurf_dist_CI(2,:)-CondSurf_dist,...
@@ -268,6 +283,17 @@ set(gca,'XTick',1:numUniqConds,'XTickLabel',sortedCondNames,...
     'XTickLabelRotation',45,'XLim',[0.5,numUniqConds+0.5])
 ylabel('Cond-Surf distance [\mum]')
 
+
+subplot(3,6,16)
+errorbar(1:numUniqConds, ...
+    IntCorr,...
+    IntCorr_CI(2,:)-IntCorr,...
+    IntCorr-IntCorr_CI(1,:),...
+    'ko-','Color',[0.0,0.0,0.0],'LineWidth',1,...
+    'MarkerFaceColor',[0,0,0])
+set(gca,'XTick',1:numUniqConds,'XTickLabel',sortedCondNames,...
+    'XTickLabelRotation',45,'XLim',[0.5,numUniqConds+0.5])
+ylabel('Cond.-Surf. Int. Correlation')
 
 %% --- Scatter plots of intensities and solidity
 
@@ -294,7 +320,7 @@ for cc = 1:numUniqConds
     CondCond_Int = sortedDropletIntCell{2}{cc};
     % --- object intensity calculation, end
     
-    subplot(2,numUniqConds,cc)
+    subplot(3,numUniqConds,cc)
     scatter(SurfVol,SurfCond_Int,...
         5,SurfSol')
     colormap(parula)
@@ -306,7 +332,7 @@ for cc = 1:numUniqConds
     xlabel('Surf. Vol. [\mum^3]')
     ylabel('Surf. Cond. Int.')
 
-    subplot(2,numUniqConds,numUniqConds+cc)
+    subplot(3,numUniqConds,numUniqConds+cc)
     scatter(CondSurf_Int,CondCond_Int,...
         5,CondVol')
     colormap(parula)
@@ -317,6 +343,20 @@ for cc = 1:numUniqConds
     title(sortedCondNames(cc))
     xlabel('Int. Surface')
     ylabel('Int. X-Motif')
+
+    subplot(3,numUniqConds,numUniqConds.*2+cc)
+    scatter(CondSurf_Int,CondCond_Int,...
+        CondVol./8,[0,0,0],'filled')
+    colormap(flipud(parula))
+    set(gca,'CLim',[0,800],'Box','on')
+    %set(gca,'XLim',[0,15000],'YLim',[0,25000])
+    %     a=colorbar;
+    %     a.Label.String = 'Cond. Volume [\mum^3]';
+    xlabel('Int. Surface')
+    ylabel('Int. X-Motif')
+    title('Area\proptoCond. Vol.',...
+        'FontWeight','normal')
+
     
 
 end
@@ -327,7 +367,7 @@ figure(3)
 
 clf
 
-plotConds = [3,4,5,6,1];
+plotConds = [3,6,1];
 
 for_count = 0;
 
