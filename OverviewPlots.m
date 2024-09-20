@@ -327,11 +327,11 @@ figure(3)
 
 clf
 
-lineStyles = {'k-','r--'};
+plotConds = [3,4,5,6,1];
 
 for_count = 0;
 
-for cc = [1,6]
+for cc = plotConds
 
     thisCondInd = cc;
     for_count = for_count + 1;
@@ -351,7 +351,7 @@ for cc = [1,6]
     % --- object intensity calculation, end
     
     scatter(CondSurf_Int,CondCond_Int,...
-        CondVol./7,'filled')
+        CondVol./5,'filled')
     colormap(flipud(parula))
     set(gca,'CLim',[0,800],'Box','on')
     set(gca,'XLim',[0,15000],'YLim',[0,25000])
@@ -368,4 +368,4 @@ for cc = [1,6]
 
 end
 
-legend(sortedCondNames([1,6]))
+legend(sortedCondNames(plotConds))
