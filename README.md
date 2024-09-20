@@ -28,6 +28,7 @@ After the image analysis itself has completed, you can use further scripts to ge
 
 List of such files:
 - OverviewPlots.m
+- Titration_ExampleImages.m
 - ...
 
 # Example data
