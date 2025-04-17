@@ -2,11 +2,16 @@ clear all
 
 % Specify the directory that contains the extracted files from the last
 % step, where you extracted from the raw files obtained from the microscope
+
+        
 sourceDirectory = ...
-    './ExtractedStacks/**/';
+    '';
+
+SaveDirectory = ...
+    '';
 
 % Channels for segmentation
-Condensate_SegChannel = 2; % Channel used to detect droplets
+Condensate_SegChannel = 2; % Channel used to detect droplets; !l::
 Surface_SegChannel = 1; % Channel used to detect surface structures
 
 % Save images of the clusters
@@ -23,16 +28,17 @@ quantBlurSigma = [0,0];
 Condensate_segBlurSigma_object = 0.5; % in microns
 Condensate_segBlurSigma_BG_removal = 5.0; % in microns
 % Number of standard deviations above background for the robust threshold
-Condensate_seg_numStdDev = 6.0;
+Condensate_seg_numStdDev = 4;
 
 % Blurring and segmentation parameters for the Surface
 Surface_segBlurSigma_object = 0.5; % in microns
 Surface_segBlurSigma_BG_removal = 5.0; % in microns
-Surface_seg_numStdDev = 6.0; % number of standard deviations in robust threshold
+Surface_seg_numStdDev = 4; % number of standard deviations in robust threshold
 
 % Minimum volumes for condensate and surface objects
-Condensate_minVol = 0.02; % cubic microns
-Surface_minVol = 0.02; % cubic microns
+Condensate_minVol = 0.05; % cubic microns
+Surface_minVol = 0.05; % cubic microns
+min_size = 4; % 2x2 pixels 'cleaning'
 
 surf_DBSCAN_epsilon = 3;
 cond_DBSCAN_epsilon = 3;
@@ -47,6 +53,7 @@ cond_DBSCAN_epsilon = 3;
 % during extraction
 listing = rdir([sourceDirectory,'*Image*.mat']);
 numFiles = numel(listing);
+
 
 % Condition index retrieval
 condInds = [];
@@ -74,6 +81,8 @@ cond_intCell = cell(1,numFiles);
 drop_intCell = cell(1,numFiles);
 pixelSize_vec = zeros(1,numFiles);
 zStepSize_vec = zeros(1,numFiles);
+BGSurf_Int = zeros(1, numFiles);  
+BGCond_Int = zeros(1, numFiles);  
 
 % Variable to store the pixel sizes
 Condensate_xyVoxelSizeCell = cell(1,numFiles);
@@ -104,7 +113,7 @@ parfor ff = 1:numFiles
 	
 	fprintf('Processing file %d of %d\n',ff,numFiles)
 	
-	thisCondInd = condInds(ff);	
+	% thisCondInd = condInds(ff);	
 	thisFilePath = listing(ff).name;
 	
 	loadStruct = load(thisFilePath,...
@@ -145,85 +154,59 @@ parfor ff = 1:numFiles
     seg_mean_surf = mean(seg_intensities_surf);
     seg_std_surf = std(seg_intensities_surf);
     SurfaceSegMask = segImg_surf>(seg_mean_surf+Surface_seg_numStdDev.*seg_std_surf);
+    SurfaceSegMask = bwareaopen(SurfaceSegMask, min_size);
+    BackgroundSurfMask = ~SurfaceSegMask;
+    BGSurf_Int(ff) = mean(imgStack{Surface_SegChannel}(BackgroundSurfMask));
+
 
     seg_intensities_cond = segImg_cond(:);
     seg_mean_cond = mean(seg_intensities_cond);
     seg_std_cond = std(seg_intensities_cond);
-    CondensateSegMask = segImg_cond>(seg_mean_cond+Condensate_seg_numStdDev.*seg_std_cond);    
-    
-    % display raw image, preprocessed image, and segmented image for both
-    % channels
-
-	subplot(4,3,1)
-	imagesc(squeeze(imgStack{Surface_SegChannel}(:,:,ceil(imgSize(3)./2))))
-	axis tight equal
-    title('Raw image')
-    ylabel('Surface, central section')
+    CondensateSegMask = segImg_cond>(seg_mean_cond+Condensate_seg_numStdDev.*seg_std_cond); 
+    CondensateSegMask = bwareaopen(CondensateSegMask, min_size);
+    BackgroundCondMask = ~CondensateSegMask;
+    BGCond_Int(ff) = mean(imgStack{Condensate_SegChannel}(BackgroundCondMask));
 	
-	subplot(4,3,2)
-	imagesc(squeeze(segImg_surf(:,:,ceil(imgSize(3)./2))))
-	axis tight equal
-    title('Processed image')
+    %Uncomment to save images in .png
 
-	subplot(4,3,3)
-	imagesc(squeeze(SurfaceSegMask(:,:,ceil(imgSize(3)./2))))
-	axis tight equal
-    title('Segmentation mask')
-
-
-
-    subplot(4,3,4)
-	imagesc(max(imgStack{Surface_SegChannel},[],3))
-	axis tight equal
-    ylabel('Surface, max. projection')
-
-	subplot(4,3,5)
-	imagesc(max(segImg_surf,[],3))
-	axis tight equal
-    
-    subplot(4,3,6)
-    imagesc(max(SurfaceSegMask,[],3))
-	axis tight equal
-
-
-
-    subplot(4,3,7)
-	imagesc(squeeze(imgStack{Condensate_SegChannel}(:,:,ceil(imgSize(3)./2))))
-	axis tight equal
-    ylabel('Condensate, xy-section')
-	
-	subplot(4,3,8)
-	imagesc(squeeze(segImg_cond(:,:,ceil(imgSize(3)./2))))
-	axis tight equal
-
-	subplot(4,3,9)
-	imagesc(squeeze(CondensateSegMask(:,:,ceil(imgSize(3)./2))))
-	axis tight equal
-
+    % % Surf_raw
+    % centralSlice = squeeze(imgStack{Surface_SegChannel}(:,:,ceil(imgSize(3)./2)));
+    % centralSlice_normalized = mat2gray(centralSlice);
+    % outputFilePath = fullfile(SaveDirectory, sprintf('centralSlice_Surface_raw_%d.png', ff));
+    % imwrite(centralSlice_normalized, outputFilePath);
+    % 
+    % % Surf_processed
+    % centralSlice = squeeze(segImg_surf(:,:,ceil(imgSize(3)./2)));
+    % centralSlice_normalized = mat2gray(centralSlice);
+    % outputFilePath = fullfile(SaveDirectory, sprintf('centralSlice_Surface_processed_%d.png', ff));
+    % imwrite(centralSlice_normalized, outputFilePath);
+    % 
+    % % Surf_seg_mask
+    % centralSlice = squeeze(SurfaceSegMask(:,:,ceil(imgSize(3)./2)));
+    % centralSlice_normalized = mat2gray(centralSlice);
+    % outputFilePath = fullfile(SaveDirectory, sprintf('centralSlice_Surface_seg_mask_%d.png', ff));
+    % imwrite(centralSlice_normalized, outputFilePath);
+    % 
+    % 
+    % % Cond_raw
+    % centralSlice = squeeze(imgStack{Condensate_SegChannel}(:,:,ceil(imgSize(3)./2)));
+    % centralSlice_normalized = mat2gray(centralSlice);
+    % outputFilePath = fullfile(SaveDirectory, sprintf('centralSlice_Condensate_raw_%d.png', ff));
+    % imwrite(centralSlice_normalized, outputFilePath);
+    % 
+    % % Cond_processed
+    % centralSlice = squeeze(segImg_cond(:,:,ceil(imgSize(3)./2)));
+    % centralSlice_normalized = mat2gray(centralSlice);
+    % outputFilePath = fullfile(SaveDirectory, sprintf('centralSlice_Condensate_processed_%d.png', ff));
+    % imwrite(centralSlice_normalized, outputFilePath);
+    % 
+    % % Cond_seg_mask
+    % centralSlice = squeeze(CondensateSegMask(:,:,ceil(imgSize(3)./2)));
+    % centralSlice_normalized = mat2gray(centralSlice);
+    % outputFilePath = fullfile(SaveDirectory, sprintf('centralSlice_Condensate_seg_mask_%d.png', ff));
+    % imwrite(centralSlice_normalized, outputFilePath);
 
 
-    subplot(4,3,10)
-	imagesc(max(imgStack{Condensate_SegChannel},[],3))
-	axis tight equal
-    ylabel('Condensate, max. projection')
-	
-	subplot(4,3,11)
-	imagesc(max(segImg_cond,[],3))
-	axis tight equal
-
-    subplot (4,3,12)
-    imagesc(max(CondensateSegMask,[],3))
-	axis tight equal
-    
-    colormap(inferno)
-
-
-    % Uncomment the following two lines if you want to check the extracted
-    % images one by one
-%     fprintf('File name: %s, Condition: %s\n',...
-%         thisFilePath,thisCondName)
-% 	waitforbuttonpress
-	
 	% --- Connected component segmentation of surfaces
 	comps_surf = bwconncomp(SurfaceSegMask,18);
 	numPxls = cellfun(@(elmt)numel(elmt),comps_surf.PixelIdxList);
@@ -270,23 +253,6 @@ parfor ff = 1:numFiles
 
         centerPlaneInd = round(imgSize(3).*0.5);
 
-        subplot(1,3,1)
-        imagesc(squeeze(max(SurfaceSegMask,[],3)))
-        axis tight equal
-        title('Max cluster mask',FontSize=20);
-
-        subplot(1,3,2)
-        imagesc(squeeze(max(LL,[],3)))
-        axis tight equal
-        title('Max cluster comps',FontSize=20);
-
-        subplot(1,3,3)
-        imagesc(squeeze(LL(:,:,centerPlaneInd)))
-        axis tight equal
-        title('Mid cluster comps',FontSize=20);
-        %set(gca,'Colormap',lines)
-
-        %waitforbuttonpress
 
     end
 
@@ -302,7 +268,7 @@ parfor ff = 1:numFiles
 
         unique_inds = unique(dbscan_inds);
         num_inds = numel(unique_inds);
-        updated_comps = comps_surf;
+        updated_comps = comps_cond; 
         updated_comps.NumObjects = num_inds;
         updated_comps.PixelIdxList = cell(1,num_inds);
         for ii = 1:num_inds
@@ -317,24 +283,24 @@ parfor ff = 1:numFiles
         LL = labelmatrix(comps_cond);
 
         centerPlaneInd = round(imgSize(3).*0.5);
-
-        subplot(1,3,1)
-        imagesc(squeeze(max(CondensateSegMask,[],3)))
-        axis tight equal
-        title('Max cluster mask',FontSize=20);
-
-        subplot(1,3,2)
-        imagesc(squeeze(max(LL,[],3)))
-        axis tight equal
-        title('Max cluster comps',FontSize=20);
-
-        subplot(1,3,3)
-        imagesc(squeeze(LL(:,:,centerPlaneInd)))
-        axis tight equal
-        title('Mid cluster comps',FontSize=20);
-        %set(gca,'Colormap',lines)
-
-        %waitforbuttonpress
+        % 
+        % subplot(1,3,1)
+        % imagesc(squeeze(max(CondensateSegMask,[],3)))
+        % axis tight equal
+        % title('Max cluster mask',FontSize=20);
+        % 
+        % subplot(1,3,2)
+        % imagesc(squeeze(max(LL,[],3)))
+        % axis tight equal
+        % title('Max cluster comps',FontSize=20);
+        % 
+        % subplot(1,3,3)
+        % imagesc(squeeze(LL(:,:,centerPlaneInd)))
+        % axis tight equal
+        % title('Mid cluster comps',FontSize=20);
+        % %set(gca,'Colormap',lines)
+        % 
+        % %waitforbuttonpress
 
     end
 
@@ -378,17 +344,18 @@ parfor ff = 1:numFiles
     end
     Cond_Solidity_array = [props_drop.Solidity];
 
+
     Condensate_volCell{ff} = Cond_Volume_array;
     Condensate_solCell{ff} = Cond_Solidity_array;
     %Condensate_eloCell{ff} = vertcat(Condensate_elongation{:});
-    %Condensate_imgCell{ff} = vertcat(Condensate_centralSlices_store{:});
+    % Condensate_imgCell{ff} = vertcat(Condensate_centralSlices_store{:});
     Condensate_centCell{ff} = Cond_Centroid_array;
     Condensate_intCell{ff} = cell(1,numQuantChannels);
         
     Surface_volCell{ff} = Surf_Volume_array;
     Surface_solCell{ff} = Surf_Solidity_array;
     %Surface_eloCell{ff} = vertcat(Surface_elongation{:});
-    %Surface_imgCell{ff} = vertcat(Surface_centralSlices_store{:});
+    % Surface_imgCell{ff} = vertcat(Surface_centralSlices_store{:});
     Surface_centCell{ff} = Surf_Centroid_array;
     Surface_intCell{ff} = cell(1,numQuantChannels);
 
@@ -428,37 +395,6 @@ parfor ff = 1:numFiles
            
 end
 
-% % Retain only files that returned nuclei
-% 
-% condNames = condNames(validFileFlag);
-% surf_intCell = surf_intCell(validFileFlag);
-% drop_intCell = drop_intCell(validFileFlag);
-% nuc_stdCell = nuc_stdCell(validFileFlag);
-% nuc_medianVolCell = nuc_medianVolCell(validFileFlag);
-% perNuc_countCell = perNuc_countCell(validFileFlag);
-% 
-% Droplet_xyVoxelSizeCell = Droplet_xyVoxelSizeCell(validFileFlag);
-% Droplet_zVoxelSizeCell = Droplet_zVoxelSizeCell(validFileFlag);
-% Surface_xyVoxelSizeCell = Surface_xyVoxelSizeCell(validFileFlag);
-% Surface_zVoxelSizeCell = Surface_zVoxelSizeCell(validFileFlag);
-% 
-% Droplet_volCell = Droplet_volCell(validFileFlag);
-% Droplet_solCell = Droplet_solCell(validFileFlag);
-% Droplet_eloCell = Droplet_eloCell(validFileFlag);
-% Droplet_imgCell = Droplet_imgCell(validFileFlag);
-% Droplet_centCell = Droplet_centCell(validFileFlag);
-% Droplet_Surface_distCell = Droplet_Surface_distCell(validFileFlag);
-% Droplet_intCell = Droplet_intCell(validFileFlag);
-% Droplet_nucIntCell = Droplet_nucIntCell(validFileFlag);
-% 
-% Surface_volCell = Surface_volCell(validFileFlag);
-% Surface_solCell = Surface_solCell(validFileFlag);
-% Surface_eloCell = Surface_eloCell(validFileFlag);
-% Surface_imgCell = Surface_imgCell(validFileFlag);
-% Surface_centCell = Surface_centCell(validFileFlag);
-% Surface_Droplet_distCell = Surface_Droplet_distCell(validFileFlag);
-% Surface_intCell = Surface_intCell(validFileFlag);
-% Surface_nucIntCell = Surface_nucIntCell(validFileFlag);
 
 %% Sort into conditions
 
@@ -554,5 +490,9 @@ for cc = 1:numPlotSets
 	end
 	
 end
+%% 
 
 save('sortedResultsBundle')
+output_file = fullfile(SaveDirectory, 'sortedResultsBundle_k_4.mat');
+save(output_file);
+disp(['Analysis saved in : ', output_file]);
